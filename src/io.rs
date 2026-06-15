@@ -1,6 +1,8 @@
 //! Elements critical for I/O operations to the chip.
 use crate::{audio::AudioChannel, errors::Error, register::RegisterIndex};
 
+use core::marker::PhantomData;
+
 /// The Read trait is used for reading register values from the PSG.
 pub trait Read {
     fn read<R: RegisterIndex>(&self, register: R) -> Result<u8, Error>;

@@ -7,7 +7,9 @@ impl CommandOutput for NoOutput {
     fn execute(&mut self, _: Command) {} // do nothing
 }
 
+#[cfg(feature = "read")]
 struct NoRead;
+#[cfg(feature = "read")]
 impl Read for NoRead {
     fn read<R>(&self, _: R) -> Result<u8, ay_psg::errors::Error> {
         Ok(0)

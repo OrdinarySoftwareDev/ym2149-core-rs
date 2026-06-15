@@ -19,17 +19,22 @@ use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
 
-const DELAY_BETWEEN_TESTS: Duration = Duration::from_millis(1_000);
-const DELAY_ENV_SHAPES: Duration = Duration::from_millis(2_000);
-const DELAY_ENV_SHAPES_PAUSE: Duration = Duration::from_millis(1_000);
+macro_rules! const_delay {
+    ($name:ident : $value:literal ms) => {
+        const $name: Duration = Duration::from_millis($value);
+    };
+}
+
+const_delay!(DELAY_BETWEEN_TESTS: 1_000 ms);
+const_delay!(DELAY_ENV_SHAPES: 2_000 ms);
+const_delay!(DELAY_ENV_SHAPES_PAUSE: 1_000 ms);
 
 use ay_psg::audio::{ENVELOPE_SHAPES, REFERENCE_PITCH};
 use ay_psg::{
     audio::{AUDIO_CHANNELS, Envelope, EnvelopeFrequency},
     errors::Error,
-    io::{IoPort, IoPortMixerSettings, IoPortMode, ReadDriver},
+    io::{IoPort, IoPortMixerSettings, IoPortMode},
     prelude::*,
-    register::RegisterIndex,
 };
 
 struct SimChipWriter {
@@ -45,11 +50,14 @@ impl CommandOutput for SimChipWriter {
 struct SimulatedChip {
     regs: [u8; 16],
 }
+
+#[cfg(feature = "read")]
 struct IdealReadDummy {
     pub chip: Rc<RefCell<SimulatedChip>>,
 }
 
-impl ay_psg::io::Read for IdealReadDummy {
+#[cfg(feature = "read")]
+impl Read for IdealReadDummy {
     fn read<R: RegisterIndex>(&self, register: R) -> Result<u8, Error> {
         Ok(self.chip.borrow().regs[register.address() as usize])
     }
@@ -61,14 +69,20 @@ fn main() -> Result<(), ay_psg::errors::Error> {
     let writer = SimChipWriter {
         chip: Rc::clone(&simulated_chip),
     };
+
+    #[cfg(feature = "read")]
     let reader = IdealReadDummy {
         chip: Rc::clone(&simulated_chip),
     };
 
+    #[cfg(not(feature = "read"))]
+    let mut chip = PSG::new(writer, 2_000_000);
+    #[cfg(feature = "read")]
     let mut chip = PSG::new(writer, 2_000_000, ReadDriver(reader));
 
     // TESTS
     // Full register write test
+    #[cfg(feature = "read")]
     for r in 0..15 {
         for i in 0..=0xFF {
             chip.command(r, i);

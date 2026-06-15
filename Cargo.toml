@@ -14,7 +14,6 @@ categories = ["embedded", "hardware-support", "no-std::no-alloc"]
 [features]
 notes = []
 read = []
-default = ["read"]
 
 [dependencies]
 libm = "0.2.16"

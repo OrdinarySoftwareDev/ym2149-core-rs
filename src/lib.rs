@@ -19,7 +19,7 @@
 //! **read** - I/O read operation support
 //!
 //! # Compatibility
-//! This code should be backwards-compatible with other PSG sound chips based on the AY-3-8910, such as the YM2149, AY-3-8910 and Sunsoft 5B.
+//! This code should be compatible with other PSG sound chips based on the AY-3-8910, such as the YM2149, AY-3-8910 and Sunsoft 5B.
 //!
 //! ***When in doubt, check the datasheet!***
 
@@ -33,7 +33,7 @@ pub mod io;
 pub mod notes;
 pub mod prelude {
     #[cfg(feature = "read")]
-    pub use crate::io::{Read, ReadDriver};
+    pub use crate::{register::RegisterIndex, io::{Read, ReadDriver}};
     pub use crate::{
         chip::PSG,
         command::{Command, CommandOutput},

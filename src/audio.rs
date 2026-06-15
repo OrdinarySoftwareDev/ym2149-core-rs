@@ -10,7 +10,7 @@ pub const REFERENCE_PITCH: f32 = 440.0;
 /// ---
 ///
 /// ```no_run
-/// use ym2149-core::audio::AudioChannel;
+/// use ay_psg::audio::AudioChannel;
 ///
 /// chip.tone_hz(AudioChannel::A, 110)?;
 /// chip.tone_hz(AudioChannel::B, 220)?;
@@ -46,11 +46,13 @@ pub enum Level {
     EnvelopeControlled,
 }
 
-impl Level {
-    pub fn as_register_value(self) -> Result<u8, Error> {
-        match self.clone() {
-            Self::Fixed(n) => (n <= 0xF).then_some(n).ok_or(Error::LevelOutOfRange(n)),
-            Self::EnvelopeControlled => Ok(0x10),
+impl TryFrom<Level> for u8 {
+    type Error = crate::errors::Error;
+
+    fn try_from(value: Level) -> Result<Self, self::Error> {
+        match value {
+            Level::Fixed(n) => (n <= 0xF).then_some(n).ok_or(Error::LevelOutOfRange(n)),
+            Level::EnvelopeControlled => Ok(0x10),
         }
     }
 }

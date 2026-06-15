@@ -6,8 +6,8 @@ use std::thread;
 use std::time::Duration;
 
 use ay_psg::{
-    audio::{AudioChannel, BuiltinEnvelopeShape, Envelope},
-    io::IoPortMixerSettings,
+    audio::{AudioChannel, BuiltinEnvelopeShape, Envelope, Level},
+    io::{IoPortMixerSettings},
     prelude::*,
 };
 
@@ -23,7 +23,9 @@ const DOREMI: [f32; 8] = [
     261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.26,
 ];
 
+#[cfg(feature = "read")]
 struct NullDriver;
+#[cfg(feature = "read")]
 impl Read for NullDriver {
     fn read<R: ay_psg::register::RegisterIndex>(&self, _: R) -> Result<u8, ay_psg::errors::Error> {
         Ok(0)
@@ -32,6 +34,10 @@ impl Read for NullDriver {
 
 fn main() {
     let out = DisplayWriter {};
+
+    #[cfg(not(feature = "read"))]
+    let mut chip = PSG::new(out, 2_000_000);
+    #[cfg(feature = "read")]
     let mut chip = PSG::new(out, 2_000_000, ReadDriver(NullDriver {}));
 
     chip.setup_io_and_mixer(IoPortMixerSettings {
@@ -41,7 +47,7 @@ fn main() {
         ..Default::default()
     });
 
-    chip.level(TEST_CHANNEL, 0xF).expect("Failed to set level");
+    chip.level(TEST_CHANNEL, Level::Fixed(0xF)).expect("Failed to set level");
     chip.set_envelope_shape(Envelope::Shape(BuiltinEnvelopeShape::Saw));
     loop {
         for f in DOREMI {

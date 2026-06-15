@@ -1,13 +1,14 @@
 // Imports
-use crate::audio::{AudioChannel, Envelope, EnvelopeFrequency};
+use crate::audio::{AudioChannel, Envelope, EnvelopeFrequency, Level};
 use crate::command::{Command, CommandOutput};
 use crate::errors::Error;
-use crate::io::{IoPort, IoPortMixerSettings, Read, ReadDriver};
+use crate::io::{IoPort, IoPortMixerSettings, ReadDriver};
 
 use crate::register::{LEVEL_REGS, Register, RegisterIndex};
-
 #[cfg(feature = "notes")]
 use crate::notes::Note;
+
+use core::marker::PhantomData;
 
 // =========================================================
 // ====================== CHIP STRUCT ======================
@@ -93,10 +94,9 @@ impl<R, W> PSG<R, W>
 where
     W: CommandOutput,
 {
-    /// Send a [`command::Command`].
+    /// Send a [`Command`] to the [`CommandOutput`].
     pub fn command<RI: RegisterIndex>(&mut self, register: RI, value: u8) {
-        self.command_output
-            .execute(Command::new(register.address(), value));
+        self.command_output.execute(Command::new(register.address(), value));
     }
 
     /// Setup the IO ports and the internal mixer according to the [`IoPortMixerSettings`] specified.
@@ -148,7 +148,7 @@ where
         Ok(())
     }
 
-    /// Play a tone of a given frequency in Hz on an [AudioChannel](#AudioChannel).
+    /// Play a tone of a given frequency in Hz on an [`AudioChannel`].
     ///
     /// ***Basic usage:***
     /// ```no_run
@@ -227,9 +227,11 @@ where
     /// **Note:** The channel level registers store 5 bits of data per channel, of which the most significant bit controls
     /// whether the level is controlled by the envelope generator.
     ///
+    /// The [`Level`] enum defines whether the channel level is envelope-controlled or set manually.
+    ///
     /// ---
     ///
-    /// From the datasheet:
+    /// Channel level register description (from the datasheet):
     /// - Mode M selects whether the level is fixed (when M = 0) or variable (M = 1).
     /// - When M = 0, the level is determined from one of 16 by level selection signals L3, L2, L1, and L0 which compromise the lower four bits.
     /// - When M = 1, the level is determined by the 5 bit output of E4, E3, E2, E1, and E0 of the envelope generator of the SSG.
@@ -237,13 +239,10 @@ where
     /// | B7 (MSB)  | B6  | B5  | B4  | B3  | B2  | B1  | B0  |
     /// |-----------|-----|-----|-----|-----|-----|-----|-----|
     /// | N/A       | N/A | N/A |  M  | L3  | L2  | L1  | L0  |
-    pub fn level(&mut self, channel: AudioChannel, level: u8) -> Result<(), Error> {
-        if level <= 0x1F {
-            self.command(LEVEL_REGS[channel.index()] as u8, level & 0x1F);
-            Ok(())
-        } else {
-            Err(Error::LevelOutOfRange(level))
-        }
+    pub fn level(&mut self, channel: AudioChannel, level: Level) -> Result<u8, Error> {
+        let byte = level.try_into()?;
+        self.command(LEVEL_REGS[channel.index()], byte);
+        Ok(byte)
     }
 
     /// Writes 0 to all registers of the PSG.
@@ -293,7 +292,7 @@ where
     /// This method is **unimplemented** *(at least, not for now...)*
     ///
     /// Feel free to try implementing it yourself, at your own risk.
-    fn read_io(&self, port: IoPort) -> u8 {
-        unimplemented!("Mode::READ and any functions associated with it are not yet usable.");
+    fn read_io(&self, port: IoPort) -> Result<u8, Error> {
+        self.read_driver.0.read(port as u8 + 0xE)
     }
 }
